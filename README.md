@@ -4,6 +4,8 @@ REST API based Pi controller
 
 ## Introduction
 
+This application has been written as a simple REST based GPIO pin controller (on-off switcher) for Raspberry Pi Zero W. As this application uses standard Linux driver for GPIO operations it should works also on other Pi models as well as on other SBCs with Linux on board.
+
 ## Downloading and building
 
 ## Usage
