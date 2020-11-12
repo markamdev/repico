@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	defListenAddress = "localhost:9000"
+	defListenAddress = "0.0.0.0:9000"
 )
 
 var srv *http.Server
@@ -19,7 +19,9 @@ func LaunchServer() error {
 	srv = &http.Server{Addr: defListenAddress, Handler: handler}
 
 	// if server will fail to start application will be killed anyway
-	go log.Fatal(srv.ListenAndServe())
+	go func() {
+		log.Fatal(srv.ListenAndServe())
+	}()
 	// return nil as no errors till now (ex. in config)
 	return nil
 }

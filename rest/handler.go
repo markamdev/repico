@@ -1,9 +1,13 @@
 package rest
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+
+	"github.com/markamdev/repico/gpio"
 )
 
 const (
@@ -37,5 +41,38 @@ func (m myHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 }
 
 func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
+	pinString := strings.TrimPrefix(req.RequestURI, apiPrefix)
+	val, err := strconv.ParseInt(pinString, 10, 32)
+	if err != nil {
+		log.Println("Invalid GPIO number", pinString)
+		resp.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	// 1kB of body data should be enough
+	buffer := make([]byte, 1024)
+	len, err := req.Body.Read(buffer)
+	if err != nil && len == 0 {
+		log.Println("Invalid body:", buffer[:len], "Error:", err.Error())
+		resp.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	dt := ReqData{}
+	err = json.Unmarshal(buffer[:len], &dt)
+	if err != nil {
+		log.Println("Failed to unmarshal data:", buffer[:len], string(buffer[:len]), "Error:", err.Error())
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = m.setGPIOValue(int(val), dt.State)
+	if err != nil {
+		log.Println("Setting GPIO value failed:", err.Error())
+		resp.WriteHeader(http.StatusInternalServerError)
+	} else {
+		resp.WriteHeader(http.StatusOK)
+	}
+}
 
+func (m myHandler) setGPIOValue(pin, value int) error {
+	log.Printf("Setting pin %v to value %v", pin, value)
+	return gpio.SetGPIO(pin, value)
 }

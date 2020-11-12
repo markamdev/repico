@@ -2,23 +2,36 @@
 
 API_PATH="/v1/gpio"
 
+if [ -z "$API_ENDPOINT" ];
+then
+	export API_ENDPOINT="localhost:9000"
+fi
+
+if [ -z "$PIN_NUMBER" ];
+then
+	export PIN_NUMBER="4"
+fi
+
 echo "GET on $API_PATH"
-curl -i -X GET localhost:9000$API_PATH
+curl -i -X GET $API_ENDPOINT$API_PATH
 sleep 3
 
-echo "GET on $API_PATH/10"
-curl -i -X GET localhost:9000$API_PATH/10
+echo "GET on $API_PATH/$PIN_NUMBER"
+curl -i -X GET $API_ENDPOINT$API_PATH/$PIN_NUMBER
 sleep 3
 
-echo "PUT on $API_PATH/10"
-curl -i -X PUT -H "ContentType:application/json" -d '{"status" :"on"}' localhost:9000/v1/gpio/10
+echo "PUT '1' on $API_PATH/$PIN_NUMBER"
+curl -i -X PUT -H "ContentType:application/json" -d '{"state" :1}' $API_ENDPOINT/v1/gpio/$PIN_NUMBER
+sleep 3
+
+echo "PUT '0' on $API_PATH/$PIN_NUMBER"
+curl -i -X PUT -H "ContentType:application/json" -d '{"state" :0}' $API_ENDPOINT/v1/gpio/$PIN_NUMBER
 sleep 3
 
 echo "POST on $API_PATH"
-curl -i -X POST localhost:9000$API_PATH
+curl -i -X POST $API_ENDPOINT$API_PATH
 sleep 3
 
-echo "POST on $API_PATH/10"
-curl -i -X POST localhost:9000$API_PATH/10
+echo "POST on $API_PATH/$PIN_NUMBER"
+curl -i -X POST $API_ENDPOINT$API_PATH/$PIN_NUMBER
 sleep 3
-
