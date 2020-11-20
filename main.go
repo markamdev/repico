@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/markamdev/repico/config"
 	"github.com/markamdev/repico/gpio"
@@ -21,23 +22,23 @@ func main() {
 		log.Fatalln("Failed to launch RePiCo:", err)
 	}
 
-	interruptCh := make(chan os.Signal)
-	signal.Notify(interruptCh, os.Interrupt)
+	interruptCh := make(chan os.Signal, 1)
+	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
 
-	// wait for app killing
-	<-interruptCh
-	log.Println("(Killed by Ctrl+C)")
-	// TODO Proper HTTP server closing
-	//rr.StopServer()
+	sg := <-interruptCh
+	log.Println("Closed by singal:", sg)
 	deinit()
+
+	log.Println("Exiting...")
 }
 
 // initialize is a single initialization (and potential failure) point
 func initialize() error {
-	currentConfig, err := config.ReadConfig()
+	cfg, err := config.ReadConfig()
 	if err != nil {
 		return fmt.Errorf("Configuration reading error: %v", err.Error())
 	}
+	currentConfig = cfg
 	if len(currentConfig.Pins) == 0 {
 		return fmt.Errorf("No GPIO to manage - exiting")
 	}
@@ -61,7 +62,7 @@ func initialize() error {
 
 func deinit() {
 	for _, pin := range currentConfig.Pins {
-		log.Printf("Disablinf output GPIO %d", pin)
+		log.Printf("Disabling output GPIO %d", pin)
 		gpio.DisableGPIO(pin)
 	}
 }
