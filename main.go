@@ -6,9 +6,12 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/markamdev/repico/config"
 	"github.com/markamdev/repico/gpio"
 	rr "github.com/markamdev/repico/rest"
 )
+
+var currentConfig config.Params
 
 func main() {
 	log.Printf("RePiCo server")
@@ -26,16 +29,26 @@ func main() {
 	log.Println("(Killed by Ctrl+C)")
 	// TODO Proper HTTP server closing
 	//rr.StopServer()
-	gpio.DisableGPIO(4)
+	deinit()
 }
 
 // initialize is a single initialization (and potential failure) point
 func initialize() error {
-	// TODO change hardcoded pin into value selected by user
-	err := gpio.EnableGPIO(4, gpio.Output)
+	currentConfig, err := config.ReadConfig()
 	if err != nil {
-		return fmt.Errorf("Failed to set pin 4 as Ouput: %v", err)
+		return fmt.Errorf("Configuration reading error: %v", err.Error())
 	}
+	if len(currentConfig.Pins) == 0 {
+		return fmt.Errorf("No GPIO to manage - exiting")
+	}
+	for _, pin := range currentConfig.Pins {
+		log.Printf("Enabling output GPIO %d", pin)
+		err := gpio.EnableGPIO(pin, gpio.Output)
+		if err != nil {
+			return fmt.Errorf("Failed to set pin %d as Ouput: %v", pin, err)
+		}
+	}
+
 	err = rr.LaunchServer()
 	if err != nil {
 		return fmt.Errorf("Server launching failure: %v", err)
@@ -44,4 +57,11 @@ func initialize() error {
 
 	log.Println("Successfully initalized")
 	return nil
+}
+
+func deinit() {
+	for _, pin := range currentConfig.Pins {
+		log.Printf("Disablinf output GPIO %d", pin)
+		gpio.DisableGPIO(pin)
+	}
 }
