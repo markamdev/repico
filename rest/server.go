@@ -1,8 +1,11 @@
 package rest
 
 import (
+	"context"
 	"log"
 	"net/http"
+
+	"github.com/markamdev/repico/internal"
 )
 
 const (
@@ -20,7 +23,11 @@ func LaunchServer() error {
 
 	// if server will fail to start application will be killed anyway
 	go func() {
-		log.Fatal(srv.ListenAndServe())
+		err := srv.ListenAndServe()
+		// in fact if the ListenAndServe() exits it means that there an error when starting server
+		if err != nil {
+			internal.MessageBus <- internal.Message{Type: internal.HTTPServerError, Content: err.Error()}
+		}
 	}()
 	// return nil as no errors till now (ex. in config)
 	return nil
@@ -28,5 +35,6 @@ func LaunchServer() error {
 
 // StopServer sends stop signal to server (ex. on SIGINT)
 func StopServer() {
-	srv.Shutdown(nil)
+	log.Println("Stopping HTTP server")
+	srv.Shutdown(context.Background())
 }

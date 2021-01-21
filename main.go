@@ -7,12 +7,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/markamdev/repico/config"
 	"github.com/markamdev/repico/gpio"
+	"github.com/markamdev/repico/internal"
 	rr "github.com/markamdev/repico/rest"
 )
 
-var currentConfig config.Params
+var currentConfig internal.Params
 
 func main() {
 	log.Printf("RePiCo server")
@@ -22,19 +22,28 @@ func main() {
 		log.Fatalln("Failed to launch RePiCo:", err)
 	}
 
-	interruptCh := make(chan os.Signal, 1)
-	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
+	setSighandler()
 
-	sg := <-interruptCh
-	log.Println("Closed by singal:", sg)
-	deinit()
-
-	log.Println("Exiting...")
+	for {
+		msg := <-internal.MessageBus
+		switch msg.Type {
+		case internal.ClosedBySignal:
+			log.Println("Exiting due to received signal")
+			deinit()
+			return
+		case internal.HTTPServerError:
+			log.Println("Exiting due to HTTP Server error")
+			deinit()
+			return
+		case internal.Info:
+			log.Println("Info:", msg.Content)
+		}
+	}
 }
 
 // initialize is a single initialization (and potential failure) point
 func initialize() error {
-	cfg, err := config.ReadConfig()
+	cfg, err := internal.ReadConfig()
 	if err != nil {
 		return fmt.Errorf("Configuration reading error: %v", err.Error())
 	}
@@ -54,10 +63,20 @@ func initialize() error {
 	if err != nil {
 		return fmt.Errorf("Server launching failure: %v", err)
 	}
-	log.Println("HTTP server started")
 
-	log.Println("Successfully initalized")
+	log.Println("Initialization completed")
 	return nil
+}
+
+func setSighandler() {
+	log.Println("Attaching signal handler")
+	interruptCh := make(chan os.Signal, 1)
+	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		_ = <-interruptCh
+		internal.MessageBus <- internal.Message{Type: internal.ClosedBySignal, Content: "Closing signal received"}
+	}()
 }
 
 func deinit() {

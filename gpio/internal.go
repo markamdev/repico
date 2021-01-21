@@ -42,10 +42,9 @@ func addPin(pin int, dir Direction) error {
 		if elm == dir {
 			// ok, no conflict
 			return nil
-		} else {
-			// pin direction changing temporary not supported
-			return errors.New("Pin alrady used with another direction")
 		}
+		// pin direction changing temporary not supported
+		return errors.New("Pin alrady used with another direction")
 	}
 
 	err := exportGPIO(pin, dir)
@@ -69,6 +68,7 @@ func exportGPIO(pin int, dir Direction) error {
 	pinID := []byte(strconv.Itoa(pin))
 	err := ioutil.WriteFile(pathGpioExport, pinID, 0770)
 	if err != nil {
+		// TODO check if already exported and do not report error in such case
 		return fmt.Errorf("Failed to export pin '%v': %v", string(pinID), err)
 	}
 	pinValuePath := createDirectionPath(pin)

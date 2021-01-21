@@ -5,19 +5,6 @@ import (
 	"fmt"
 )
 
-// Direction defines GPIO pin direction
-// Possible values are Unset, Input and Output
-type Direction int
-
-const (
-	// Unset - edfault value, not set
-	Unset Direction = iota
-	// Input - GPIO pin set as input
-	Input
-	// Output - GPIO pin set as output
-	Output
-)
-
 // SetGPIO tries to set given value to GPIO port
 func SetGPIO(number, value int) error {
 	av, err := isAvailable(number, Output)

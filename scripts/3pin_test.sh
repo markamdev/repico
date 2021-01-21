@@ -18,7 +18,7 @@ echo "Testing output GPIOs ${PINS[@]} at $API_ENDPOINT"
 for t in ${TRIALS[@]}; do
     echo "** Trial number $t"
     for p in ${PINS[@]}; do
-        echo "*** Pin number"
+        echo "*** Pin number $p"
         curl -i -X PUT -H "ContentType:application/json" -d '{"state" :1}' $API_ENDPOINT/v1/gpio/$p
         sleep 1
         curl -i -X PUT -H "ContentType:application/json" -d '{"state" :0}' $API_ENDPOINT/v1/gpio/$p

@@ -51,6 +51,7 @@ func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
 	// 1kB of body data should be enough
 	buffer := make([]byte, 1024)
 	len, err := req.Body.Read(buffer)
+	// TODO change condition below (EOF does not mean error if len > 0)
 	if err != nil && len == 0 {
 		log.Println("Invalid body:", buffer[:len], "Error:", err.Error())
 		resp.WriteHeader(http.StatusBadRequest)
