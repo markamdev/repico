@@ -84,4 +84,6 @@ func deinit() {
 		log.Printf("Disabling output GPIO %d", pin)
 		gpio.DisableGPIO(pin)
 	}
+	rr.StopServer()
+	log.Println("Deinitialization completed")
 }
