@@ -47,7 +47,7 @@ func createHandler() myHandler {
 	// new approach and URIs
 	result.handlers[listURIPrefix] = notSupported
 	result.handlers[aliasURIPrefix] = notSupported
-	result.handlers[numberURIPrefix] = setGPIO
+	result.handlers[numberURIPrefix] = handleNumber
 	result.handlers[configURIPrefix] = notSupported
 
 	return result
@@ -59,11 +59,25 @@ func notSupported(resp http.ResponseWriter, req *http.Request) {
 	resp.Write([]byte("{ \"message\" : \"Function not yet implemented\"}"))
 }
 
-func setGPIO(resp http.ResponseWriter, req *http.Request) {
+func handleNumber(resp http.ResponseWriter, req *http.Request) {
+	// this function should support
+	// - GET and PUT for single number
+	// - GET and PATCH for multiple numbers
+
+	if req.RequestURI == numberURIPrefix {
+		// multi-number case
+		handleMultiNumber(resp, req)
+	} else {
+		handleSingleNumber(resp, req)
+	}
+}
+
+func handleSingleNumber(resp http.ResponseWriter, req *http.Request) {
 	// check HTTP method first
-	if req.Method != http.MethodPut {
-		// currently not supported
-		resp.WriteHeader(http.StatusNotImplemented)
+	if req.Method != http.MethodPut && req.Method != http.MethodGet {
+		// for single number URI only GET and PUT are allowed
+		log.Println("Invalid method:", req.Method)
+		resp.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	// parse URI to check pin number
@@ -74,35 +88,72 @@ func setGPIO(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// 1kB of body data should be enough
-	buffer := make([]byte, 1024)
-	len, err := req.Body.Read(buffer)
-	// EOF does not mean - only end of data reached)
-	if err != nil && err != io.EOF {
-		log.Println("Error while reading request body:", err.Error())
-		resp.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	// empty buffer -> no need to go further
-	if len == 0 {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	dt := ReqData{}
-	err = json.Unmarshal(buffer[:len], &dt)
-	if err != nil {
-		log.Println("Failed to unmarshal data:", buffer[:len], string(buffer[:len]), "Error:", err.Error())
-		resp.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	err = gpio.SetGPIO(int(val), dt.State)
-	if err != nil {
-		log.Println("Setting GPIO value failed:", err.Error())
-		// TODO FIXME not all errors here are InteralError - some can be BadRequest
-		resp.WriteHeader(http.StatusInternalServerError)
+
+	var execError error
+	// handle PUT
+	if req.Method == http.MethodPut {
+		// 1kB of body data should be enough
+		buffer := make([]byte, 1024)
+		len, err := req.Body.Read(buffer)
+		// EOF does not mean - only end of data reached)
+		if err != nil && err != io.EOF {
+			log.Println("Error while reading request body:", err.Error())
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		// empty buffer -> no need to go further
+		if len == 0 {
+			resp.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		dt := ReqData{}
+		err = json.Unmarshal(buffer[:len], &dt)
+		if err != nil {
+			log.Println("Failed to unmarshal data:", buffer[:len], string(buffer[:len]), "Error:", err.Error())
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		execError = gpio.SetGPIO(int(val), dt.State)
+		if execError == nil {
+			resp.WriteHeader(http.StatusOK)
+			return
+		}
 	} else {
-		resp.WriteHeader(http.StatusOK)
+		var pinVal int
+		pinVal, execError = gpio.GetGPIO(int(val))
+		if execError == nil {
+			result := PinNumberData{Number: int(val), State: pinVal}
+			content, err := json.Marshal(result)
+			if err == nil {
+				resp.WriteHeader(http.StatusOK)
+				resp.Header().Set("Content-Type", "application/json")
+				resp.Write(content)
+				return
+			} else {
+				log.Println("Failed to marshal GET result")
+				execError = err
+			}
+		}
 	}
+
+	if execError != nil {
+		log.Println("GPIO operation failed:", execError.Error())
+		// TODO FIXME not all errors here are InteralError - some can be BadRequest
+		// - add new error type to rest/types.go
+		// - convert recevied error into some HTTP message here
+		resp.WriteHeader(http.StatusInternalServerError)
+	}
+
+}
+
+func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPatch && req.Method != http.MethodGet {
+		// only GET and PATCH are supported
+		resp.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	resp.WriteHeader(http.StatusNotImplemented)
 }
 
 /*

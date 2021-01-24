@@ -28,9 +28,13 @@ func isAvailable(pin int, dir Direction) (bool, error) {
 		// pin not configured
 		return false, nil
 	}
+	// Output pin can be also read so Input request allowed for Input and Output pins
+	if dir == Input {
+		return true, nil
+	}
+	// if pin is Input and directions don't match (so requesting it as Output) then return error
 	if elm != dir {
-		// pin used BUT set to different direction
-		return false, errors.New("Pin configured with different direction")
+		return false, errors.New("Cannot set value on input pin")
 	}
 	// pin used and set to desired direction
 	return true, nil
@@ -118,6 +122,16 @@ func setValue(pin, value int) error {
 		err = ioutil.WriteFile(pinPath, []byte{'1'}, 0700)
 	}
 	return err
+}
+
+func getValue(pin int) (int, error) {
+	pinPath := createValuePath(pin)
+	data, err := ioutil.ReadFile(pinPath)
+	if err != nil {
+		return -1, fmt.Errorf("Failed to read GPIO value: %v", err.Error())
+	}
+
+	return int(data[0] - '0'), nil
 }
 
 func isExported(pin int) bool {

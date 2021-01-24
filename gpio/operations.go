@@ -21,8 +21,17 @@ func SetGPIO(number, value int) error {
 }
 
 // GetGPIO tries to check current status of given GPIO port
-func GetGPIO(number int) (bool, error) {
-	return false, errors.New("GPIO state get not implemented")
+func GetGPIO(number int) (int, error) {
+	//return false, errors.New("GPIO state get not implemented")
+
+	av, err := isAvailable(number, Input)
+	if err != nil {
+		return -1, fmt.Errorf("Pin %v not available for setting: %v", number, err)
+	}
+	if !av {
+		return -1, fmt.Errorf("Pin %v not configured", number)
+	}
+	return getValue(number)
 }
 
 // EnableGPIO enables given GPIO pin in requested direction
