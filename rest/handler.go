@@ -13,36 +13,61 @@ import (
 
 const (
 	// expected request URI is in format: /v1/gpio/<number>
-	apiPrefix = "/v1/gpio/"
+	apiPrefix       = "/v1/gpio/"
+	listURIPrefix   = "/v1/gpio/list"
+	aliasURIPrefix  = "/v1/gpio/alias"
+	numberURIPrefix = "/v1/gpio/number"
+	configURIPrefix = "/v1/gpio/config"
 )
 
-type myHandler struct{}
+type myHandler struct {
+	handlers map[string]func(resp http.ResponseWriter, req *http.Request)
+}
 
 // ServeHTTP method for serving HTTP requests
 func (m myHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	// TODO remove log below when server fully implemented
 	log.Printf("Request received. Type: %+v, URI: %v", req.Method, req.RequestURI)
-	// skip further processing on incorrect URI
-	if !strings.HasPrefix(req.RequestURI, apiPrefix) {
-		log.Println("Invalid URI:", req.RequestURI)
-		resp.WriteHeader(http.StatusNotFound)
-		return
-	}
 
-	switch req.Method {
-	case http.MethodGet:
-		// currently not supported
-		resp.WriteHeader(http.StatusNotImplemented)
-	case http.MethodPut:
-		m.setGPIO(resp, req)
-	default:
-		log.Println("Unsupported method:", req.Method)
-		resp.WriteHeader(http.StatusMethodNotAllowed)
+	// check if URI is supported
+	for uri, handler := range m.handlers {
+		if strings.HasPrefix(req.RequestURI, uri) {
+			log.Println("URI match:", uri)
+			handler(resp, req)
+			return
+		}
 	}
+	log.Println("Invalid URI:", req.RequestURI)
+	resp.WriteHeader(http.StatusNotFound)
 }
 
-func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
-	pinString := strings.TrimPrefix(req.RequestURI, apiPrefix)
+func createHandler() myHandler {
+	result := myHandler{}
+	result.handlers = make(map[string]func(resp http.ResponseWriter, req *http.Request))
+	// new approach and URIs
+	result.handlers[listURIPrefix] = notSupported
+	result.handlers[aliasURIPrefix] = notSupported
+	result.handlers[numberURIPrefix] = setGPIO
+	result.handlers[configURIPrefix] = notSupported
+
+	return result
+}
+
+func notSupported(resp http.ResponseWriter, req *http.Request) {
+	resp.WriteHeader(http.StatusNotImplemented)
+	resp.Header().Set("Content-Type", "application/json")
+	resp.Write([]byte("{ \"message\" : \"Function not yet implemented\"}"))
+}
+
+func setGPIO(resp http.ResponseWriter, req *http.Request) {
+	// check HTTP method first
+	if req.Method != http.MethodPut {
+		// currently not supported
+		resp.WriteHeader(http.StatusNotImplemented)
+		return
+	}
+	// parse URI to check pin number
+	pinString := strings.TrimPrefix(req.RequestURI, numberURIPrefix+"/")
 	val, err := strconv.ParseInt(pinString, 10, 32)
 	if err != nil {
 		log.Println("Invalid GPIO number", pinString)
@@ -70,7 +95,7 @@ func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	err = m.setGPIOValue(int(val), dt.State)
+	err = gpio.SetGPIO(int(val), dt.State)
 	if err != nil {
 		log.Println("Setting GPIO value failed:", err.Error())
 		// TODO FIXME not all errors here are InteralError - some can be BadRequest
@@ -80,7 +105,9 @@ func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+/*
 func (m myHandler) setGPIOValue(pin, value int) error {
 	log.Printf("Setting pin %v to value %v", pin, value)
 	return gpio.SetGPIO(pin, value)
 }
+*/

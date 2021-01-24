@@ -17,7 +17,7 @@ var srv *http.Server
 // LaunchServer initializes REST API server
 func LaunchServer() error {
 	log.Println("Starting HTTP REST server at:", defListenAddress)
-	handler := myHandler{}
+	handler := createHandler()
 	// TODO At least listening port should be configurable
 	srv = &http.Server{Addr: defListenAddress, Handler: handler}
 
