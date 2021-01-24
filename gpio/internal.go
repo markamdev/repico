@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"time"
 )
@@ -66,10 +67,11 @@ func removePin(pin int) error {
 
 func exportGPIO(pin int, dir Direction) error {
 	pinID := []byte(strconv.Itoa(pin))
-	err := ioutil.WriteFile(pathGpioExport, pinID, 0770)
-	if err != nil {
-		// TODO check if already exported and do not report error in such case
-		return fmt.Errorf("Failed to export pin '%v': %v", string(pinID), err)
+	if !isExported(pin) {
+		err := ioutil.WriteFile(pathGpioExport, pinID, 0770)
+		if err != nil {
+			return fmt.Errorf("Failed to export pin '%v': %v", string(pinID), err)
+		}
 	}
 	pinValuePath := createDirectionPath(pin)
 	var directionString string
@@ -80,7 +82,7 @@ func exportGPIO(pin int, dir Direction) error {
 	}
 	// TODO add proper checking for exported GPIO
 	time.Sleep(time.Millisecond * 200)
-	err = ioutil.WriteFile(pinValuePath, []byte(directionString), 0770)
+	err := ioutil.WriteFile(pinValuePath, []byte(directionString), 0770)
 	if err != nil {
 		unexportGPIO(pin)
 		return fmt.Errorf("Failed to set direction '%v' for pin '%v': %v", directionString, string(pinID), err)
@@ -116,4 +118,12 @@ func setValue(pin, value int) error {
 		err = ioutil.WriteFile(pinPath, []byte{'1'}, 0700)
 	}
 	return err
+}
+
+func isExported(pin int) bool {
+	gpioDir := pathGpioPinBase + strconv.Itoa(int(pin))
+	if _, err := os.Stat(gpioDir); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }

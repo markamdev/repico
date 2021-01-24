@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -51,9 +52,14 @@ func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
 	// 1kB of body data should be enough
 	buffer := make([]byte, 1024)
 	len, err := req.Body.Read(buffer)
-	// TODO change condition below (EOF does not mean error if len > 0)
-	if err != nil && len == 0 {
-		log.Println("Invalid body:", buffer[:len], "Error:", err.Error())
+	// EOF does not mean - only end of data reached)
+	if err != nil && err != io.EOF {
+		log.Println("Error while reading request body:", err.Error())
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	// empty buffer -> no need to go further
+	if len == 0 {
 		resp.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -67,6 +73,7 @@ func (m myHandler) setGPIO(resp http.ResponseWriter, req *http.Request) {
 	err = m.setGPIOValue(int(val), dt.State)
 	if err != nil {
 		log.Println("Setting GPIO value failed:", err.Error())
+		// TODO FIXME not all errors here are InteralError - some can be BadRequest
 		resp.WriteHeader(http.StatusInternalServerError)
 	} else {
 		resp.WriteHeader(http.StatusOK)
