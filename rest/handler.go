@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/markamdev/repico/gpio"
+	"github.com/markamdev/repico/internal"
 )
 
 const (
@@ -48,7 +49,7 @@ func createHandler() myHandler {
 	result.handlers[listURIPrefix] = notSupported
 	result.handlers[aliasURIPrefix] = notSupported
 	result.handlers[numberURIPrefix] = handleNumber
-	result.handlers[configURIPrefix] = notSupported
+	result.handlers[configURIPrefix] = handleConfig
 
 	return result
 }
@@ -78,6 +79,7 @@ func handleSingleNumber(resp http.ResponseWriter, req *http.Request) {
 		// for single number URI only GET and PUT are allowed
 		log.Println("Invalid method:", req.Method)
 		resp.WriteHeader(http.StatusMethodNotAllowed)
+		resp.Write([]byte("\"message\",\"Only PUT and GET methods allowed for /number/<x> URI\""))
 		return
 	}
 	// parse URI to check pin number
@@ -151,6 +153,7 @@ func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
 		// only GET and PATCH are supported
 		log.Println("Invalid method:", req.Method)
 		resp.WriteHeader(http.StatusMethodNotAllowed)
+		resp.Write([]byte("\"message\",\"Only PATCH and GET methods allowed for /number URI\""))
 		return
 	}
 
@@ -203,4 +206,44 @@ func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
 	}
 	resp.WriteHeader(http.StatusOK)
 	resp.Write(data)
+}
+
+func handleConfig(resp http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPut {
+		resp.WriteHeader(http.StatusMethodNotAllowed)
+		resp.Write([]byte("\"message\",\"Only PUT method allowed for /config URI\""))
+	}
+
+	// config should not be larged than 2kB but setting buffer to 4k (just in case)
+	buffer := make([]byte, 4096)
+	len, err := req.Body.Read(buffer)
+	if err != nil && err != io.EOF {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if len == 0 {
+		resp.WriteHeader(http.StatusBadRequest)
+		log.Println("Empty config given to /config PUT request")
+		// TODO add some error message to response
+		return
+	}
+	var appConfig internal.RestConfig
+	err = json.Unmarshal(buffer[:len], &appConfig)
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		log.Println("Failed to unmarshal config:", err.Error())
+		return
+	}
+	log.Println("Config name:", appConfig.Name)
+	log.Println("Configured pins:", appConfig.Pins)
+
+	err = internal.ValidateConfig(appConfig)
+	if err != nil {
+		resp.WriteHeader(http.StatusBadRequest)
+		// TODO add error message
+		log.Println("Invalid configuration given:", err.Error())
+		return
+	}
+
+	resp.WriteHeader(http.StatusNotImplemented)
 }
