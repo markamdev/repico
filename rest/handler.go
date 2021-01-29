@@ -129,10 +129,10 @@ func handleSingleNumber(resp http.ResponseWriter, req *http.Request) {
 				resp.Header().Set("Content-Type", "application/json")
 				resp.Write(content)
 				return
-			} else {
-				log.Println("Failed to marshal GET result")
-				execError = err
 			}
+
+			log.Println("Failed to marshal GET result")
+			execError = err
 		}
 	}
 
@@ -149,16 +149,45 @@ func handleSingleNumber(resp http.ResponseWriter, req *http.Request) {
 func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPatch && req.Method != http.MethodGet {
 		// only GET and PATCH are supported
+		log.Println("Invalid method:", req.Method)
 		resp.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	if req.Method == http.MethodPatch {
+		// read configuration from BODY
+		buffer := make([]byte, 2048)
+		len, err := req.Body.Read(buffer)
+		if err != nil && err != io.EOF {
+			resp.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if len == 0 {
+			resp.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		pinConfig := make([]PinNumberData, 0)
+		err = json.Unmarshal(buffer[:len], &pinConfig)
+		if err != nil {
+			log.Println("Unmarshal error:", err.Error())
+			resp.WriteHeader(http.StatusBadRequest)
+			resp.Write([]byte(err.Error()))
+			return
+		}
+		log.Println("Unmarshalled request data:", pinConfig)
+		for _, item := range pinConfig {
+			log.Println("- setting", item.Number, "to", item.State)
+			err = gpio.SetGPIO(item.Number, item.State)
+			if err != nil {
+				log.Println("Error while setting pin in handleMultiNumber:", err.Error())
+				resp.WriteHeader(http.StatusInternalServerError)
+				// TODO add info about failed setting
+				return
+			}
+		}
+		resp.WriteHeader(http.StatusOK)
 		return
 	}
 
 	resp.WriteHeader(http.StatusNotImplemented)
 }
-
-/*
-func (m myHandler) setGPIOValue(pin, value int) error {
-	log.Printf("Setting pin %v to value %v", pin, value)
-	return gpio.SetGPIO(pin, value)
-}
-*/
