@@ -189,5 +189,18 @@ func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp.WriteHeader(http.StatusNotImplemented)
+	// GET method implementation (as only PATCH above and GET are supported)
+	allPins, err := gpio.GetAllGPIO()
+	if err != nil {
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	data, err := json.Marshal(allPins)
+	if err != nil {
+		log.Println("Failed to marshal multi-gpio get result:", err.Error())
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	resp.WriteHeader(http.StatusOK)
+	resp.Write(data)
 }

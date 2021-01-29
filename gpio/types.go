@@ -19,3 +19,10 @@ type PinConfig struct {
 	Mode   Direction
 	Label  string
 }
+
+// PinState describes state of GPIO pin
+type PinState struct {
+	Number int
+	Alias  string
+	State  int
+}

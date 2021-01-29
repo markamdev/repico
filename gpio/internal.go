@@ -141,3 +141,20 @@ func isExported(pin int) bool {
 	}
 	return true
 }
+
+func getAllPins() ([]PinState, error) {
+	// TODO replace with 'result := make([]PinState, len(usedPins))' and change loop below
+	result := make([]PinState, 0)
+	if len(usedPins) == 0 {
+		return result, nil
+	}
+	for pin := range usedPins {
+		vl, err := getValue(pin)
+		if err != nil {
+			return []PinState{}, fmt.Errorf("Failed to get state of pin %v error: %v", pin, err.Error())
+		}
+		// TODO fill alias when new configuration implemented
+		result = append(result, PinState{Number: pin, State: vl, Alias: ""})
+	}
+	return result, nil
+}

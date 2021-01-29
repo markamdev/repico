@@ -48,3 +48,8 @@ func DisableGPIO(number int) error {
 	// TODO: add number range verification
 	return removePin(number)
 }
+
+// GetAllGPIO allows to get state of all configured GPIO pins
+func GetAllGPIO() ([]PinState, error) {
+	return getAllPins()
+}
