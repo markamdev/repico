@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/markamdev/repico/gpio"
 )
 
 // Params stores all application parameters
@@ -92,5 +94,24 @@ func ValidateConfig(conf RestConfig) error {
 		return errors.New(errString)
 	}
 	// no error found
+	return nil
+}
+
+// ApplyConfig tries to apply GPIO pins configuration based on provided data
+func ApplyConfig(conf RestConfig) error {
+	for _, pin := range conf.Pins {
+		var dir gpio.Direction
+		if pin.Direction == "in" {
+			dir = gpio.Input
+		} else {
+			// assumes that config has been already validated
+			dir = gpio.Output
+		}
+		err := gpio.EnableGPIO(pin.Number, dir)
+		if err != nil {
+			return fmt.Errorf("Failed to set config for pin %v with direction %v. Error: %v",
+				pin.Number, dir, err.Error())
+		}
+	}
 	return nil
 }

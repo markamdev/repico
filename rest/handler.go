@@ -153,7 +153,8 @@ func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
 		// only GET and PATCH are supported
 		log.Println("Invalid method:", req.Method)
 		resp.WriteHeader(http.StatusMethodNotAllowed)
-		resp.Write([]byte("\"message\",\"Only PATCH and GET methods allowed for /number URI\""))
+		resp.Header().Set("Content-Type", "application/json")
+		resp.Write([]byte("{\"message\",\"Only PATCH and GET methods allowed for /number URI\"}"))
 		return
 	}
 
@@ -211,7 +212,8 @@ func handleMultiNumber(resp http.ResponseWriter, req *http.Request) {
 func handleConfig(resp http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPut {
 		resp.WriteHeader(http.StatusMethodNotAllowed)
-		resp.Write([]byte("\"message\",\"Only PUT method allowed for /config URI\""))
+		resp.Header().Set("Content-Type", "application/json")
+		resp.Write([]byte("{\"message\",\"Only PUT method allowed for /config URI\"}"))
 	}
 
 	// config should not be larged than 2kB but setting buffer to 4k (just in case)
@@ -245,5 +247,19 @@ func handleConfig(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resp.WriteHeader(http.StatusNotImplemented)
+	err = gpio.ClearPins()
+	if err != nil {
+		log.Println("Clearing GPIO settings error:", err.Error())
+	}
+
+	err = internal.ApplyConfig(appConfig)
+	if err != nil {
+		log.Println("Setting new config failed:", err.Error())
+		resp.WriteHeader(http.StatusInternalServerError)
+		resp.Header().Set("Content-Type", "application/json")
+		resp.Write([]byte("{ \"message\" : \"Error when applying configuration. Application state unknown\"}"))
+		return
+	}
+
+	resp.WriteHeader(http.StatusOK)
 }

@@ -53,3 +53,8 @@ func DisableGPIO(number int) error {
 func GetAllGPIO() ([]PinState, error) {
 	return getAllPins()
 }
+
+// ClearPins unexport all GPIO pins configured previosly by application
+func ClearPins() error {
+	return clearPinSettings()
+}

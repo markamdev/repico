@@ -49,7 +49,7 @@ func addPin(pin int, dir Direction) error {
 			return nil
 		}
 		// pin direction changing temporary not supported
-		return errors.New("Pin alrady used with another direction")
+		return errors.New("Pin already used with another direction")
 	}
 
 	err := exportGPIO(pin, dir)
@@ -77,19 +77,19 @@ func exportGPIO(pin int, dir Direction) error {
 			return fmt.Errorf("Failed to export pin '%v': %v", string(pinID), err)
 		}
 	}
-	pinValuePath := createDirectionPath(pin)
+	pinDirectionPath := createDirectionPath(pin)
 	var directionString string
 	if dir == Input {
 		directionString = "in"
 	} else {
 		directionString = "out"
 	}
-	// TODO add proper checking for exported GPIO
+	// TODO add proper checking for exported GPIO (sometimes longer delay needed)
 	time.Sleep(time.Millisecond * 200)
-	err := ioutil.WriteFile(pinValuePath, []byte(directionString), 0770)
+	err := ioutil.WriteFile(pinDirectionPath, []byte(directionString), 0770)
 	if err != nil {
 		unexportGPIO(pin)
-		return fmt.Errorf("Failed to set direction '%v' for pin '%v': %v", directionString, string(pinID), err)
+		return fmt.Errorf("Failed to export pin '%v': %v", string(pinID), err)
 	}
 	return nil
 }
@@ -157,4 +157,21 @@ func getAllPins() ([]PinState, error) {
 		result = append(result, PinState{Number: pin, State: vl, Alias: ""})
 	}
 	return result, nil
+}
+
+func clearPinSettings() error {
+	anyError := false
+	for pin := range usedPins {
+		err := unexportGPIO(pin)
+		if err != nil {
+			anyError = true
+		}
+		// TODO change hardcoded delays to some retrials or proper path checking
+		time.Sleep(time.Millisecond * 50)
+	}
+	if anyError {
+		return errors.New("Clearing settings failed for some pins")
+	}
+	usedPins = make(map[int]Direction)
+	return nil
 }
