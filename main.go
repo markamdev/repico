@@ -12,8 +12,6 @@ import (
 	rr "github.com/markamdev/repico/rest"
 )
 
-var currentConfig internal.Params
-
 func main() {
 	log.Printf("RePiCo server")
 	err := initialize()
@@ -43,20 +41,10 @@ func main() {
 
 // initialize is a single initialization (and potential failure) point
 func initialize() error {
-	cfg, err := internal.ReadConfig()
+	// TODO add initial config reading and setting here
+	_, err := internal.ReadConfig()
 	if err != nil {
 		return fmt.Errorf("Configuration reading error: %v", err.Error())
-	}
-	currentConfig = cfg
-	if len(currentConfig.Pins) == 0 {
-		return fmt.Errorf("No GPIO to manage - exiting")
-	}
-	for _, pin := range currentConfig.Pins {
-		log.Printf("Enabling output GPIO %d", pin)
-		err := gpio.EnableGPIO(pin, gpio.Output)
-		if err != nil {
-			return fmt.Errorf("Failed to set pin %d as Ouput: %v", pin, err)
-		}
 	}
 
 	err = rr.LaunchServer()
@@ -80,10 +68,7 @@ func setSighandler() {
 }
 
 func deinit() {
-	for _, pin := range currentConfig.Pins {
-		log.Printf("Disabling output GPIO %d", pin)
-		gpio.DisableGPIO(pin)
-	}
+	gpio.ClearPins()
 	rr.StopServer()
 	log.Println("Deinitialization completed")
 }
