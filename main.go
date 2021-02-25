@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/markamdev/repico/config"
 	"github.com/markamdev/repico/gpio"
 	"github.com/markamdev/repico/internal"
 	rr "github.com/markamdev/repico/rest"
@@ -41,11 +42,14 @@ func main() {
 
 // initialize is a single initialization (and potential failure) point
 func initialize() error {
-	// TODO add initial config reading and setting here
-	_, err := internal.ReadConfig()
+	currConfig, err := config.LoadDefault()
 	if err != nil {
-		return fmt.Errorf("Configuration reading error: %v", err.Error())
+		// configuration reading error is not an fatal app error
+		log.Println("Configuration reading error:", err.Error())
 	}
+
+	// apply fetched configuration
+	config.ApplyConfig(currConfig)
 
 	err = rr.LaunchServer()
 	if err != nil {
@@ -70,5 +74,6 @@ func setSighandler() {
 func deinit() {
 	gpio.ClearPins()
 	rr.StopServer()
+	// TODO configuration storage closing should be added here when implemented
 	log.Println("Deinitialization completed")
 }

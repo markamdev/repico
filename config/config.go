@@ -1,4 +1,4 @@
-package internal
+package config
 
 import (
 	"errors"
@@ -6,17 +6,53 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/markamdev/repico/confdb"
 	"github.com/markamdev/repico/gpio"
 )
 
 const (
-	flagNamePins = "pins"
+	configFilePath = "repico.confdb"
 )
 
-// ReadConfig read and applies GPIO pins config
-func ReadConfig() (RestConfig, error) {
-	// TODO implement config reading after refactoring
-	return RestConfig{}, nil
+var configStorage confdb.ConfigStorage
+
+// LoadDefault reads all application configs (if any stored) ant returns "default" one
+func LoadDefault() (RestConfig, error) {
+	// temporary hardcoded loading config from JSON
+	// TODO storage selection and saving for future save operations
+	str, err := confdb.GetStorage(confdb.StorageTypeJSON, configFilePath)
+	if err != nil {
+		return RestConfig{}, err
+	}
+	configStorage = str
+	// TODO replace with loading last storage
+	cnf, err := str.Load("default")
+	if err != nil {
+		return RestConfig{}, err
+	}
+
+	result := RestConfig{}
+	result.Name = cnf.Name
+	for _, pin := range cnf.Pins {
+		pinCfg := PinConfig{}
+		pinCfg.Alias = pin.Alias
+		pinCfg.Direction = pin.Direction
+		result.Pins = append(result.Pins, pinCfg)
+	}
+	return result, nil
+}
+
+// Store stores gpio pin configuration in storage
+func Store(cfg RestConfig) error {
+	appCfg := confdb.AppConfig{}
+	appCfg.Name = cfg.Name
+	for _, pin := range cfg.Pins {
+		pinCfg := confdb.PinConfig{}
+		pinCfg.Alias = pin.Alias
+		pinCfg.Direction = pin.Direction
+		appCfg.Pins = append(appCfg.Pins, pinCfg)
+	}
+	return configStorage.Save(appCfg)
 }
 
 // PinConfig contains configuration of sigle GPIO pin

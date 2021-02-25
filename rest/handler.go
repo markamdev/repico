@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/markamdev/repico/config"
 	"github.com/markamdev/repico/gpio"
-	"github.com/markamdev/repico/internal"
 )
 
 const (
@@ -229,17 +229,17 @@ func handleConfig(resp http.ResponseWriter, req *http.Request) {
 		// TODO add some error message to response
 		return
 	}
-	var appConfig internal.RestConfig
-	err = json.Unmarshal(buffer[:len], &appConfig)
+	var restCfg config.RestConfig
+	err = json.Unmarshal(buffer[:len], &restCfg)
 	if err != nil {
 		resp.WriteHeader(http.StatusInternalServerError)
 		log.Println("Failed to unmarshal config:", err.Error())
 		return
 	}
-	log.Println("Config name:", appConfig.Name)
-	log.Println("Configured pins:", appConfig.Pins)
+	log.Println("Config name:", restCfg.Name)
+	log.Println("Configured pins:", restCfg.Pins)
 
-	err = internal.ValidateConfig(appConfig)
+	err = config.ValidateConfig(restCfg)
 	if err != nil {
 		resp.WriteHeader(http.StatusBadRequest)
 		// TODO add error message
@@ -252,7 +252,7 @@ func handleConfig(resp http.ResponseWriter, req *http.Request) {
 		log.Println("Clearing GPIO settings error:", err.Error())
 	}
 
-	err = internal.ApplyConfig(appConfig)
+	err = config.ApplyConfig(restCfg)
 	if err != nil {
 		log.Println("Setting new config failed:", err.Error())
 		resp.WriteHeader(http.StatusInternalServerError)
@@ -261,5 +261,10 @@ func handleConfig(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// if finished with success store this config for future (log error if any)
+	err = config.Store(restCfg)
+	if err != nil {
+		log.Println("Failed to store confing", restCfg.Name, "in storage:", err.Error())
+	}
 	resp.WriteHeader(http.StatusOK)
 }
