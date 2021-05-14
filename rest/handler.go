@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/markamdev/repico/config"
 	"github.com/markamdev/repico/gpio"
 )
 
@@ -229,42 +228,43 @@ func handleConfig(resp http.ResponseWriter, req *http.Request) {
 		// TODO add some error message to response
 		return
 	}
-	var restCfg config.RestConfig
-	err = json.Unmarshal(buffer[:len], &restCfg)
-	if err != nil {
-		resp.WriteHeader(http.StatusInternalServerError)
-		log.Println("Failed to unmarshal config:", err.Error())
-		return
-	}
-	log.Println("Config name:", restCfg.Name)
-	log.Println("Configured pins:", restCfg.Pins)
+	/*
+		var restCfg config.RestConfig
+		err = json.Unmarshal(buffer[:len], &restCfg)
+		if err != nil {
+			resp.WriteHeader(http.StatusInternalServerError)
+			log.Println("Failed to unmarshal config:", err.Error())
+			return
+		}
+		log.Println("Config name:", restCfg.Name)
+		log.Println("Configured pins:", restCfg.Pins)
 
-	err = config.ValidateConfig(restCfg)
-	if err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		// TODO add error message
-		log.Println("Invalid configuration given:", err.Error())
-		return
-	}
+		err = config.ValidateConfig(restCfg)
+		if err != nil {
+			resp.WriteHeader(http.StatusBadRequest)
+			// TODO add error message
+			log.Println("Invalid configuration given:", err.Error())
+			return
+		}
 
-	err = gpio.ClearPins()
-	if err != nil {
-		log.Println("Clearing GPIO settings error:", err.Error())
-	}
+		err = gpio.ClearPins()
+		if err != nil {
+			log.Println("Clearing GPIO settings error:", err.Error())
+		}
 
-	err = config.ApplyConfig(restCfg)
-	if err != nil {
-		log.Println("Setting new config failed:", err.Error())
-		resp.WriteHeader(http.StatusInternalServerError)
-		resp.Header().Set("Content-Type", "application/json")
-		resp.Write([]byte("{ \"message\" : \"Error when applying configuration. Application state unknown\"}"))
-		return
-	}
+		err = config.ApplyConfig(restCfg)
+		if err != nil {
+			log.Println("Setting new config failed:", err.Error())
+			resp.WriteHeader(http.StatusInternalServerError)
+			resp.Header().Set("Content-Type", "application/json")
+			resp.Write([]byte("{ \"message\" : \"Error when applying configuration. Application state unknown\"}"))
+			return
+		}
 
-	// if finished with success store this config for future (log error if any)
-	err = config.Store(restCfg)
-	if err != nil {
-		log.Println("Failed to store confing", restCfg.Name, "in storage:", err.Error())
-	}
+		// if finished with success store this config for future (log error if any)
+		err = config.Store(restCfg)
+		if err != nil {
+			log.Println("Failed to store confing", restCfg.Name, "in storage:", err.Error())
+		}*/
 	resp.WriteHeader(http.StatusOK)
 }
