@@ -1,6 +1,10 @@
 package gpio
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/sirupsen/logrus"
+)
 
 type controller struct {
 	basePath string
@@ -28,5 +32,6 @@ func (c *controller) ListExportedPins() (map[string]Direction, error) {
 }
 
 func CreateController(gpioPath string) Controller {
+	logrus.Traceln("gpio.CreateController()")
 	return &controller{basePath: gpioPath}
 }

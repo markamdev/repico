@@ -5,9 +5,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/markamdev/repico/gpio"
+	"github.com/sirupsen/logrus"
 )
 
 func CreateHandler(controller gpio.Controller) http.Handler {
+	logrus.Traceln("v2.CreateHandler()")
 
 	hndlr := gpioHandler{ctrl: controller}
 

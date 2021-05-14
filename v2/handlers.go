@@ -2,10 +2,10 @@ package v2
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/markamdev/repico/gpio"
+	"github.com/sirupsen/logrus"
 )
 
 type gpioHandler struct {
@@ -31,7 +31,7 @@ func (gh *gpioHandler) getPin(wr http.ResponseWriter, req *http.Request) {
 func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
 	pins, err := gh.ctrl.ListExportedPins()
 	if err != nil {
-		log.Println("Error when listing GPIO pins:", err)
+		logrus.Errorln("Error when listing GPIO pins:", err)
 		wr.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -51,7 +51,7 @@ func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
 
 	buffer, err := json.Marshal(result)
 	if err != nil {
-		log.Println("Error when marshalling pin data:", err)
+		logrus.Errorln("Error when marshalling pin data:", err)
 		wr.WriteHeader(http.StatusInternalServerError)
 		return
 	}
