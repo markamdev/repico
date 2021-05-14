@@ -1,70 +1,38 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/markamdev/repico/gpio"
-	"github.com/markamdev/repico/internal"
-	rr "github.com/markamdev/repico/rest"
+	v2 "github.com/markamdev/repico/v2"
 )
 
 func main() {
 	log.Printf("RePiCo server")
-	err := initialize()
-	if err != nil {
-		// handle error and exit
-		log.Fatalln("Failed to launch RePiCo:", err)
-	}
 
-	setSighandler()
+	ctrl := gpio.CreateController("/sys/class/gpio")
+	mainRouter := v2.CreateHandler(ctrl)
+	srv := http.Server{Addr: ":8080", Handler: mainRouter}
 
-	for {
-		msg := <-internal.MessageBus
-		switch msg.Type {
-		case internal.ClosedBySignal:
-			log.Println("Exiting due to received signal")
-			deinit()
-			return
-		case internal.HTTPServerError:
-			log.Println("Exiting due to HTTP Server error")
-			deinit()
-			return
-		case internal.Info:
-			log.Println("Info:", msg.Content)
-		}
-	}
-}
-
-// initialize is a single initialization (and potential failure) point
-func initialize() error {
-
-	err := rr.LaunchServer()
-	if err != nil {
-		return fmt.Errorf("Server launching failure: %v", err)
-	}
-
-	log.Println("Initialization completed")
-	return nil
-}
-
-func setSighandler() {
-	log.Println("Attaching signal handler")
-	interruptCh := make(chan os.Signal, 1)
-	signal.Notify(interruptCh, os.Interrupt, syscall.SIGTERM)
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt)
 
 	go func() {
-		_ = <-interruptCh
-		internal.MessageBus <- internal.Message{Type: internal.ClosedBySignal, Content: "Closing signal received"}
+		err := srv.ListenAndServe()
+		if err != nil {
+			if err == http.ErrServerClosed {
+				log.Println("Regular server closing")
+			} else {
+				log.Fatalln("HTTP server launching error:", err)
+			}
+		}
 	}()
-}
 
-func deinit() {
-	gpio.ClearPins()
-	rr.StopServer()
-	// TODO configuration storage closing should be added here when implemented
-	log.Println("Deinitialization completed")
+	_ = <-sigChannel
+	log.Println("Closing server after signal received")
+	srv.Shutdown(context.Background())
 }
