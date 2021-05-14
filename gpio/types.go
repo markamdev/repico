@@ -26,3 +26,12 @@ type PinState struct {
 	Alias  string
 	State  int
 }
+
+// Controller is an interface of GPIO controlling object
+type Controller interface {
+	SetValue(pin, value int) error
+	GetValue(pin int) (int, error)
+	ExportPin(pin int, mode Direction) error
+	UnexportPin(pin int) error
+	ListExportedPins() (map[int]Direction, error)
+}
