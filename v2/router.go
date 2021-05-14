@@ -1,7 +1,6 @@
 package v2
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,28 +9,14 @@ import (
 
 func CreateHandler(controller gpio.Controller) http.Handler {
 
+	hndlr := gpioHandler{ctrl: controller}
+
 	router := mux.NewRouter()
-	router.HandleFunc("/v2/gpio/{pin:[0-9]+}", defaultStub).Methods("GET", "DELETE", "PATCH")
-	router.HandleFunc("/v2/gpio", defaultStub).Methods("GET", "POST")
+	router.HandleFunc("/v2/gpio/{pin:[0-9]+}", hndlr.deletePin).Methods("DELETE")
+	router.HandleFunc("/v2/gpio/{pin:[0-9]+}", hndlr.setPin).Methods("PATCH")
+	router.HandleFunc("/v2/gpio/{pin:[0-9]+}", hndlr.getPin).Methods("GET")
+	router.HandleFunc("/v2/gpio", hndlr.addPin).Methods("POST")
+	router.HandleFunc("/v2/gpio", hndlr.getAllPins).Methods("GET")
 
-	return &gpioRouter{ctrl: controller, handler: router}
-}
-
-type gpioRouter struct {
-	ctrl    gpio.Controller
-	handler *mux.Router
-}
-
-func (gr *gpioRouter) ServeHTTP(wr http.ResponseWriter, req *http.Request) {
-	gr.handler.ServeHTTP(wr, req)
-}
-
-const (
-	errorMessage = "{ \"error\":\"endpoint %s for method %s not implemented\" }"
-)
-
-func defaultStub(wr http.ResponseWriter, req *http.Request) {
-	wr.WriteHeader(http.StatusNotImplemented)
-	msg := fmt.Sprintf(errorMessage, req.RequestURI, req.Method)
-	wr.Write([]byte(msg))
+	return router
 }
