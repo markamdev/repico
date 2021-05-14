@@ -1,7 +1,7 @@
 package v2
 
 import (
-	"errors"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,13 +18,39 @@ func TestCreateHandler(t *testing.T) {
 
 	assert.NotEqual(t, nil, hndlr, "Returned handler should not be nil")
 
-	t.Run("list all pins", func(t *testing.T) {
+	t.Run("list all pins - no content", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v2/gpio", body)
 		resRecorder := httptest.NewRecorder()
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusNotImplemented, resRecorder.Code, "GPIO listing failed")
+		assert.Equal(t, http.StatusNoContent, resRecorder.Code, "GPIO listing failed")
+	})
+
+	t.Run("list all pins - 2 pins returned", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v2/gpio", body)
+		resRecorder := httptest.NewRecorder()
+		ctrl.mapToReturn = map[string]gpio.Direction{"1": gpio.Input, "2": gpio.Output}
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusOK, resRecorder.Code, "GPIO listing failed")
+
+		type listItem struct {
+			Pin       string
+			Direction string
+		}
+		gpioList := []listItem{}
+		json.Unmarshal(resRecorder.Body.Bytes(), &gpioList)
+		assert.Equal(t, 2, len(gpioList), "Expected two elements but got %d:", len(gpioList))
+
+		item := gpioList[0]
+		assert.Equal(t, "1", item.Pin)
+		assert.Equal(t, "in", item.Direction)
+
+		item = gpioList[1]
+		assert.Equal(t, "2", item.Pin)
+		assert.Equal(t, "out", item.Direction)
 	})
 
 	t.Run("add pin", func(t *testing.T) {
@@ -65,27 +91,29 @@ func TestCreateHandler(t *testing.T) {
 }
 
 type controllerStub struct {
+	valueToReturn int
+	errorToReturn error
+	mapToReturn   map[string]gpio.Direction
 }
 
 func (cs *controllerStub) SetValue(pin, value int) error {
-	return errors.New("not implemented")
+	return cs.errorToReturn
 }
 
 func (cs *controllerStub) GetValue(pin int) (int, error) {
-	return 0, errors.New("not implemented")
+	return 0, cs.errorToReturn
 }
 
 func (cs *controllerStub) ExportPin(pin int, mode gpio.Direction) error {
-	return errors.New("not implemented")
+	return cs.errorToReturn
 }
 
 func (cs *controllerStub) UnexportPin(pin int) error {
-	return errors.New("not implemented")
+	return cs.errorToReturn
 }
 
-func (cs *controllerStub) ListExportedPins() (map[int]gpio.Direction, error) {
-	var result map[int]gpio.Direction
-	return result, errors.New("not implemented")
+func (cs *controllerStub) ListExportedPins() (map[string]gpio.Direction, error) {
+	return cs.mapToReturn, cs.errorToReturn
 }
 
 type bodyStub struct {
