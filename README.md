@@ -36,6 +36,18 @@ As **repico** is a REST based application it can be fully controlled by HTTP req
 
 ## Testing
 
+### Unit tests
+
+Unit tests are prepared as a pure Go test (with *testing* package used). Additionally *testify* package is used.
+
+To execute unit tests just call command shown below in main repository directory:
+
+```bash
+go test -v ./...
+```
+
+### Functional tests
+
 ## Licensing
 
 Code is published under [MIT License](https://opensource.org/licenses/MIT) as it seems to be the most permissive license. If for some reason you need to have this code published with other license (ex. to reuse the code in your project) please contact [author](#author-/-contact) directly.
