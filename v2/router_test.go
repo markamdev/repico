@@ -2,6 +2,7 @@ package v2
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -43,23 +44,50 @@ func TestCreateHandler(t *testing.T) {
 		gpioList := []listItem{}
 		json.Unmarshal(resRecorder.Body.Bytes(), &gpioList)
 		assert.Equal(t, 2, len(gpioList), "Expected two elements but got %d:", len(gpioList))
-
-		item := gpioList[0]
-		assert.Equal(t, "1", item.Pin)
-		assert.Equal(t, "in", item.Direction)
-
-		item = gpioList[1]
-		assert.Equal(t, "2", item.Pin)
-		assert.Equal(t, "out", item.Direction)
 	})
 
-	t.Run("add pin", func(t *testing.T) {
+	t.Run("add pin - empty body", func(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/v2/gpio", body)
 		resRecorder := httptest.NewRecorder()
 
+		body.dataToReturn = []byte{}
+
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusNotImplemented, resRecorder.Code, "GPIO pin adding failed")
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code, "Invalid GPIO pin adding status")
+	})
+
+	t.Run("add pin - invalid body (no direction)", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/v2/gpio", body)
+		resRecorder := httptest.NewRecorder()
+
+		body.dataToReturn = []byte("{ \"pin\" : 1 }")
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code, "Invalid GPIO pin adding status")
+	})
+
+	t.Run("add pin - invalid body (no pin)", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/v2/gpio", body)
+		resRecorder := httptest.NewRecorder()
+
+		body.dataToReturn = []byte("{ \"direction\" : \"out\" }")
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code, "Invalid GPIO pin adding status")
+	})
+
+	t.Run("add pin - correct case", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", "/v2/gpio", body)
+		resRecorder := httptest.NewRecorder()
+
+		body.dataToReturn = []byte("{ \"pin\" : 1, \"direction\" : \"out\" }")
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusOK, resRecorder.Code, "GPIO pin adding failed")
 	})
 
 	t.Run("delete pin", func(t *testing.T) {
@@ -117,10 +145,10 @@ func (cs *controllerStub) ListExportedPins() (map[string]gpio.Direction, error) 
 }
 
 type bodyStub struct {
-	dataToReturn  []byte
-	errorToReturn error
+	dataToReturn []byte
 }
 
 func (bs *bodyStub) Read(buffer []byte) (int, error) {
-	return len(bs.dataToReturn), bs.errorToReturn
+	copy(buffer, bs.dataToReturn)
+	return len(bs.dataToReturn), io.EOF
 }
