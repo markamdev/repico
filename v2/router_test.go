@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	"github.com/markamdev/repico/gpio"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateHandler(t *testing.T) {
+	logrus.SetLevel(logrus.TraceLevel)
 	ctrl := &controllerStub{}
 	body := &bodyStub{}
 
@@ -25,7 +27,7 @@ func TestCreateHandler(t *testing.T) {
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusNoContent, resRecorder.Code, "GPIO listing failed")
+		assert.Equal(t, http.StatusNoContent, resRecorder.Code)
 	})
 
 	t.Run("list all pins - 2 pins returned", func(t *testing.T) {
@@ -35,7 +37,7 @@ func TestCreateHandler(t *testing.T) {
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusOK, resRecorder.Code, "GPIO listing failed")
+		assert.Equal(t, http.StatusOK, resRecorder.Code)
 
 		type listItem struct {
 			Pin       string
@@ -54,7 +56,7 @@ func TestCreateHandler(t *testing.T) {
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusBadRequest, resRecorder.Code, "Invalid GPIO pin adding status")
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
 	})
 
 	t.Run("add pin - invalid body (no direction)", func(t *testing.T) {
@@ -65,7 +67,7 @@ func TestCreateHandler(t *testing.T) {
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusBadRequest, resRecorder.Code, "Invalid GPIO pin adding status")
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
 	})
 
 	t.Run("add pin - invalid body (no pin)", func(t *testing.T) {
@@ -76,7 +78,7 @@ func TestCreateHandler(t *testing.T) {
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusBadRequest, resRecorder.Code, "Invalid GPIO pin adding status")
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
 	})
 
 	t.Run("add pin - correct case", func(t *testing.T) {
@@ -87,25 +89,102 @@ func TestCreateHandler(t *testing.T) {
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusOK, resRecorder.Code, "GPIO pin adding failed")
+		assert.Equal(t, http.StatusOK, resRecorder.Code)
 	})
 
-	t.Run("delete pin", func(t *testing.T) {
-		req, _ := http.NewRequest("DELETE", "/v2/gpio/1", body)
+	t.Run("delete pin - invalid pin number", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/v2/gpio/-10", body)
 		resRecorder := httptest.NewRecorder()
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusNotImplemented, resRecorder.Code, "GPIO pin deletion failed")
+		assert.Equal(t, http.StatusNotFound, resRecorder.Code)
 	})
 
-	t.Run("get pin", func(t *testing.T) {
-		req, _ := http.NewRequest("GET", "/v2/gpio/1", body)
+	t.Run("delete pin - invalid path (no number)", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/v2/gpio/xyz", body)
 		resRecorder := httptest.NewRecorder()
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusNotImplemented, resRecorder.Code, "GPIO reading failed")
+		assert.Equal(t, http.StatusNotFound, resRecorder.Code)
+	})
+
+	t.Run("delete pin - unexported pin", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		ctrl.errorToReturn = gpio.ErrNotExported
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
+	})
+
+	t.Run("delete pin - correct case", func(t *testing.T) {
+		req, _ := http.NewRequest("DELETE", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		ctrl.errorToReturn = nil
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusOK, resRecorder.Code)
+	})
+
+	t.Run("get pin - invalid pin number", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v2/gpio/-10", body)
+		resRecorder := httptest.NewRecorder()
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusNotFound, resRecorder.Code)
+	})
+
+	t.Run("get pin - invalid path (no number)", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v2/gpio/xyz", body)
+		resRecorder := httptest.NewRecorder()
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusNotFound, resRecorder.Code)
+	})
+
+	t.Run("get pin - unexported pin", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		ctrl.errorToReturn = gpio.ErrNotExported
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
+	})
+
+	t.Run("get pin - correct case", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		ctrl.errorToReturn = nil
+		ctrl.valueToReturn = 1
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusOK, resRecorder.Code)
+
+		buffer := make([]byte, 1024)
+		n, err := resRecorder.Body.Read(buffer)
+		expectedErrors := []error{nil, io.EOF}
+		assert.Contains(t, expectedErrors, err, "Response body reading error")
+
+		var respData struct {
+			Pin   int `json:"pin"`
+			Value int `json:"value"`
+		}
+		err = json.Unmarshal(buffer[:n], &respData)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, respData.Pin)
+		assert.Equal(t, ctrl.valueToReturn, respData.Value)
 	})
 
 	t.Run("set pin", func(t *testing.T) {
@@ -129,7 +208,7 @@ func (cs *controllerStub) SetValue(pin, value int) error {
 }
 
 func (cs *controllerStub) GetValue(pin int) (int, error) {
-	return 0, cs.errorToReturn
+	return cs.valueToReturn, cs.errorToReturn
 }
 
 func (cs *controllerStub) ExportPin(pin int, mode gpio.Direction) error {

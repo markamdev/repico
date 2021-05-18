@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
+	"github.com/gorilla/mux"
 	"github.com/markamdev/repico/gpio"
 	"github.com/sirupsen/logrus"
 )
@@ -38,8 +40,8 @@ func (gh *gpioHandler) addPin(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	logrus.Error("No proper pin description in body")
 	if pinDesc.Pin == nil || pinDesc.Direction == nil {
-		logrus.Error("No proper pin description in body")
 		wr.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -63,7 +65,26 @@ func (gh *gpioHandler) addPin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) deletePin(wr http.ResponseWriter, req *http.Request) {
-	wr.WriteHeader(http.StatusNotImplemented)
+	params := mux.Vars(req)
+	pin, err := strconv.Atoi(params["pin"])
+	if err != nil || pin < 0 {
+		logrus.Errorln("Invalid pin number")
+		wr.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	err = gh.ctrl.UnexportPin(pin)
+	if err != nil {
+		logrus.Errorf("Failed to unexport pin '%d': %v\n", pin, err.Error())
+		if err == gpio.ErrNotExported {
+			wr.WriteHeader(http.StatusBadRequest)
+		} else {
+			wr.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	wr.WriteHeader(http.StatusOK)
 }
 
 func (gh *gpioHandler) setPin(wr http.ResponseWriter, req *http.Request) {
@@ -71,7 +92,42 @@ func (gh *gpioHandler) setPin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) getPin(wr http.ResponseWriter, req *http.Request) {
-	wr.WriteHeader(http.StatusNotImplemented)
+	params := mux.Vars(req)
+	pin, err := strconv.Atoi(params["pin"])
+	if err != nil || pin < 0 {
+		logrus.Errorln("Invalid pin number")
+		wr.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	val, err := gh.ctrl.GetValue(pin)
+	if err != nil {
+		logrus.Errorf("Failed to get pin '%d' value: %v\n", pin, err.Error())
+		if err == gpio.ErrNotExported {
+			wr.WriteHeader(http.StatusBadRequest)
+		} else {
+			wr.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	logrus.Tracef("Pin: %d Value: %d", pin, val)
+
+	respData := struct {
+		Pin   int `json:"pin"`
+		Value int `json:"value"`
+	}{
+		Pin:   pin,
+		Value: val,
+	}
+	buffer, err := json.Marshal(respData)
+	if err != nil {
+		logrus.Errorln("Failed to marshal result:", err)
+		wr.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	wr.WriteHeader(http.StatusOK)
+	wr.Write(buffer)
 }
 
 func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
