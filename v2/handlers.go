@@ -49,16 +49,20 @@ func (gh *gpioHandler) addPin(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err == gpio.ErrUnknown {
-		logrus.Error("GPIO pin exporting failed")
-		wr.WriteHeader(http.StatusInternalServerError)
+	if err == nil {
+		wr.WriteHeader(http.StatusOK)
 		return
 	}
 
-	logrus.Error("GPIO pin exporting error:", err)
-	wr.WriteHeader(http.StatusBadRequest)
-	wr.Write([]byte(err.Error()))
+	if err == gpio.ErrAlreadyExported || err == gpio.ErrInvalidDirection {
+		logrus.Warning("GPIO pin exporting error:", err)
+		wr.WriteHeader(http.StatusBadRequest)
+		wr.Write([]byte(err.Error()))
+		return
+	}
 
+	logrus.Error("GPIO pin exporting failed:", err)
+	wr.WriteHeader(http.StatusInternalServerError)
 }
 
 func (gh *gpioHandler) deletePin(wr http.ResponseWriter, req *http.Request) {
