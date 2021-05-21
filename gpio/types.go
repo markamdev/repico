@@ -13,12 +13,17 @@ const (
 	Output
 )
 
+const (
+	directionIn  = "in"
+	directionOut = "out"
+)
+
 func DirectionToString(dr Direction) string {
 	switch dr {
 	case Input:
-		return "in"
+		return directionIn
 	case Output:
-		return "out"
+		return directionOut
 	default:
 		return "-"
 	}
@@ -26,9 +31,9 @@ func DirectionToString(dr Direction) string {
 
 func StringToDirection(dr string) Direction {
 	switch dr {
-	case "in":
+	case directionIn:
 		return Input
-	case "out":
+	case directionOut:
 		return Output
 	default:
 		return Invalid
