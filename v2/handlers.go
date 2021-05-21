@@ -29,10 +29,7 @@ func (gh *gpioHandler) addPin(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var pinDesc struct {
-		Pin       *int    `json:"pin"`
-		Direction *string `json:"direction"`
-	}
+	var pinDesc pinConfigPointer
 	err = json.Unmarshal(buffer[:n], &pinDesc)
 	if err != nil {
 		logrus.Error("Unable to unmarshal request data:", err)
@@ -88,7 +85,55 @@ func (gh *gpioHandler) deletePin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) setPin(wr http.ResponseWriter, req *http.Request) {
-	wr.WriteHeader(http.StatusNotImplemented)
+	params := mux.Vars(req)
+	pin, err := strconv.Atoi(params["pin"])
+	if err != nil || pin < 0 {
+		logrus.Errorln("Invalid pin number")
+		wr.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	buffer := make([]byte, 1024)
+	n, err := req.Body.Read(buffer)
+	if err != nil && err != io.EOF {
+		logrus.Errorln("Failed to read request body:", err)
+		wr.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if n == 0 {
+		logrus.Errorln("Empty body in request")
+		wr.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	requestData := pinValuePointer{}
+	err = json.Unmarshal(buffer[:n], &requestData)
+	if err != nil {
+		logrus.Errorln("Failed to unmarshall request data:", err)
+		wr.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if requestData.Value == nil {
+		logrus.Debug("Incomplete request data")
+		wr.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = gh.ctrl.SetValue(pin, *requestData.Value)
+	if err == nil {
+		wr.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if err == gpio.ErrInvalidDirection || err == gpio.ErrNotExported {
+		logrus.Warnln("Failed to set pin value due to configuration error:", err)
+		wr.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logrus.Errorln("Failed to set pin value:", err)
+	wr.WriteHeader(http.StatusInternalServerError)
 }
 
 func (gh *gpioHandler) getPin(wr http.ResponseWriter, req *http.Request) {
@@ -112,13 +157,7 @@ func (gh *gpioHandler) getPin(wr http.ResponseWriter, req *http.Request) {
 	}
 	logrus.Tracef("Pin: %d Value: %d", pin, val)
 
-	respData := struct {
-		Pin   int `json:"pin"`
-		Value int `json:"value"`
-	}{
-		Pin:   pin,
-		Value: val,
-	}
+	respData := pinValue{Pin: pin, Value: val}
 	buffer, err := json.Marshal(respData)
 	if err != nil {
 		logrus.Errorln("Failed to marshal result:", err)
@@ -142,13 +181,9 @@ func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	type pinData struct {
-		Pin       string
-		Direction string
-	}
-	result := make([]pinData, 0, len(pins))
+	result := make([]pinConfig, 0, len(pins))
 	for k, v := range pins {
-		result = append(result, pinData{Pin: k, Direction: gpio.DirectionToString(v)})
+		result = append(result, pinConfig{Pin: k, Direction: gpio.DirectionToString(v)})
 	}
 
 	buffer, err := json.Marshal(result)
@@ -161,4 +196,25 @@ func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
 	wr.Header().Set("Content-Type", "application/json")
 	wr.Write(buffer)
 	wr.WriteHeader(http.StatusOK)
+}
+
+// TODO re-think this and maybe unify structures used in code
+type pinConfigPointer struct {
+	Pin       *int    `json:"pin"`
+	Direction *string `json:"direction"`
+}
+
+type pinConfig struct {
+	Pin       int    `json:"pin"`
+	Direction string `json:"direction"`
+}
+
+type pinValue struct {
+	Pin   int `json:"pin"`
+	Value int `json:"value"`
+}
+
+type pinValuePointer struct {
+	Pin   *int `json:"pin"`
+	Value *int `json:"value"`
 }

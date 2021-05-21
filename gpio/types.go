@@ -55,5 +55,5 @@ type Controller interface {
 	GetValue(pin int) (int, error)
 	ExportPin(pin int, mode Direction) error
 	UnexportPin(pin int) error
-	ListExportedPins() (map[string]Direction, error)
+	ListExportedPins() (map[int]Direction, error)
 }

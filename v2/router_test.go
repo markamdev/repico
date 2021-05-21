@@ -33,7 +33,7 @@ func TestCreateHandler(t *testing.T) {
 	t.Run("list all pins - 2 pins returned", func(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/v2/gpio", body)
 		resRecorder := httptest.NewRecorder()
-		ctrl.mapToReturn = map[string]gpio.Direction{"1": gpio.Input, "2": gpio.Output}
+		ctrl.mapToReturn = map[int]gpio.Direction{1: gpio.Input, 2: gpio.Output}
 
 		hndlr.ServeHTTP(resRecorder, req)
 
@@ -187,20 +187,81 @@ func TestCreateHandler(t *testing.T) {
 		assert.Equal(t, ctrl.valueToReturn, respData.Value)
 	})
 
-	t.Run("set pin", func(t *testing.T) {
-		req, _ := http.NewRequest("PATCH", "/v2/gpio/1", body)
+	t.Run("set pin - invalid pin number", func(t *testing.T) {
+		req, _ := http.NewRequest("PATCH", "/v2/gpio/-10", body)
 		resRecorder := httptest.NewRecorder()
 
 		hndlr.ServeHTTP(resRecorder, req)
 
-		assert.Equal(t, http.StatusNotImplemented, resRecorder.Code, "GPIO pin setting failed")
+		assert.Equal(t, http.StatusNotFound, resRecorder.Code)
+	})
+
+	t.Run("set pin - invalid path (no number)", func(t *testing.T) {
+		req, _ := http.NewRequest("PATCH", "/v2/gpio/xyz", body)
+		resRecorder := httptest.NewRecorder()
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusNotFound, resRecorder.Code)
+	})
+
+	t.Run("set pin - unexported pin", func(t *testing.T) {
+		req, _ := http.NewRequest("PATCH", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		body.dataToReturn = []byte("{\"value\" : 1}")
+
+		ctrl.errorToReturn = gpio.ErrNotExported
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
+	})
+
+	t.Run("set pin - incorrect direction", func(t *testing.T) {
+		req, _ := http.NewRequest("PATCH", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		body.dataToReturn = []byte("{\"value\" : 1}")
+
+		ctrl.errorToReturn = gpio.ErrInvalidDirection
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
+	})
+
+	t.Run("set pin - missing value", func(t *testing.T) {
+		req, _ := http.NewRequest("PATCH", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		ctrl.errorToReturn = nil
+
+		body.dataToReturn = []byte("{}")
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusBadRequest, resRecorder.Code)
+	})
+
+	t.Run("set pin - correct case", func(t *testing.T) {
+		req, _ := http.NewRequest("PATCH", "/v2/gpio/2", body)
+		resRecorder := httptest.NewRecorder()
+
+		body.dataToReturn = []byte("{\"value\" : 1}")
+
+		ctrl.errorToReturn = nil
+
+		hndlr.ServeHTTP(resRecorder, req)
+
+		assert.Equal(t, http.StatusOK, resRecorder.Code)
 	})
 }
 
 type controllerStub struct {
 	valueToReturn int
 	errorToReturn error
-	mapToReturn   map[string]gpio.Direction
+	mapToReturn   map[int]gpio.Direction
 }
 
 func (cs *controllerStub) SetValue(pin, value int) error {
@@ -219,7 +280,7 @@ func (cs *controllerStub) UnexportPin(pin int) error {
 	return cs.errorToReturn
 }
 
-func (cs *controllerStub) ListExportedPins() (map[string]gpio.Direction, error) {
+func (cs *controllerStub) ListExportedPins() (map[int]gpio.Direction, error) {
 	return cs.mapToReturn, cs.errorToReturn
 }
 

@@ -26,8 +26,8 @@ func (c *controller) UnexportPin(pin int) error {
 	return errors.New("not implemented")
 }
 
-func (c *controller) ListExportedPins() (map[string]Direction, error) {
-	var result map[string]Direction
+func (c *controller) ListExportedPins() (map[int]Direction, error) {
+	var result map[int]Direction
 	return result, errors.New("not implemented")
 }
 
