@@ -35,20 +35,6 @@ func StringToDirection(dr string) Direction {
 	}
 }
 
-// PinConfig describes GPIO pin: it's number, direction and optional label (alias)
-type PinConfig struct {
-	Number int
-	Mode   Direction
-	Label  string
-}
-
-// PinState describes state of GPIO pin
-type PinState struct {
-	Number int
-	Alias  string
-	State  int
-}
-
 // Controller is an interface of GPIO controlling object
 type Controller interface {
 	SetValue(pin, value int) error
