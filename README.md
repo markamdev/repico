@@ -32,7 +32,37 @@ As **repico** is a REST based application it can be fully controlled by HTTP req
 
 ### GPIO pin configuration
 
+To **enable GPIO pin** send HTTP POST request to */v2/gpio* endpoint with pin description in JSON content.
+
+*Request example for output pin*:
+
+```bash
+curl -X POST -d `{
+"pin" : 1,
+"direction" : "out"
+}` http://locahost:8080/v2/gpio
+```
+
+*Request example for input pin*:
+
+```bash
+curl -X POST -d `{
+"pin" : 1,
+"direction" : "in"
+}` http://locahost:8080/v2/gpio
+```
+
+If successfully processed HTTP OK (code 200) is returned.
+
+To **disable GPIO pin** send HTTP DELETE request to */v2/gpio/{X}* endpoint wher {X} is a PIN number.
+
+*Request example*:
+
+...
+
 ### Setting and getting GPIO pin's state
+
+### Listing all exported GPIO pins
 
 ## Testing
 
