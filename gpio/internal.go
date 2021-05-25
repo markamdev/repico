@@ -1,7 +1,9 @@
 package gpio
 
 import (
+	"io"
 	"os"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -67,5 +69,78 @@ func setDirection(pin, dir string) error {
 }
 
 func unexportPin(pin string) error {
-	return ErrNotImplemented
+	fUnexport, err := os.OpenFile(pathGpioUnexport, os.O_WRONLY, 0755)
+	if err != nil {
+		logrus.Traceln("unexportPin() unexport opening failed:", err)
+		return ErrUnknown
+	}
+	defer fUnexport.Close()
+
+	_, err = fUnexport.WriteString(pin)
+	if err != nil {
+		logrus.Traceln("exportPin() export error:", err)
+		return ErrUnknown
+	}
+
+	return nil
+}
+
+func isOutput(pin string) (bool, error) {
+	dirPath := pathGpioPinBase + pin + pathDirectionSuffix
+	fDirection, err := os.OpenFile(dirPath, os.O_RDONLY, 0755)
+	if err != nil {
+		logrus.Traceln("isOutput() cannot open direction file:", err)
+		return false, ErrUnknown
+	}
+	defer fDirection.Close()
+
+	buffer := make([]byte, 16)
+	n, err := fDirection.Read(buffer)
+	if err != nil && err != io.EOF {
+		logrus.Traceln("isOutput() failed to read direction file:", err)
+		return false, ErrUnknown
+	}
+	dirString := strings.TrimRight(string(buffer[:n]), "\n\r")
+	if dirString == "out" {
+		return true, nil
+	}
+	return false, nil
+}
+
+func setValue(pin, value string) error {
+	valuePath := pathGpioPinBase + pin + pathValueSuffix
+	fValue, err := os.OpenFile(valuePath, os.O_WRONLY, 0755)
+	if err != nil {
+		logrus.Traceln("setValue() cannot open value file:", err)
+		return ErrUnknown
+	}
+	defer fValue.Close()
+
+	_, err = fValue.WriteString(value)
+	if err != nil {
+		logrus.Traceln("setValue() cannot set GPIO state:", err)
+		return ErrUnknown
+	}
+
+	return nil
+}
+
+func getValue(pin string) (string, error) {
+	valuePath := pathGpioPinBase + pin + pathValueSuffix
+	fValue, err := os.OpenFile(valuePath, os.O_RDONLY, 0755)
+	if err != nil {
+		logrus.Traceln("getValue() cannot open value file:", err)
+		return "", ErrUnknown
+	}
+
+	defer fValue.Close()
+
+	buffer := make([]byte, 16)
+	n, err := fValue.Read(buffer)
+	if err != nil && err != io.EOF {
+		logrus.Traceln("getValue() failed to read value file:", err)
+		return "", ErrUnknown
+	}
+
+	return strings.TrimRight(string(buffer[:n]), "\r\n"), nil
 }

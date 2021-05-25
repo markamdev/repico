@@ -16,6 +16,7 @@ type gpioHandler struct {
 }
 
 func (gh *gpioHandler) addPin(wr http.ResponseWriter, req *http.Request) {
+	logrus.Debugln("addPin() handler")
 	buffer := make([]byte, 1024)
 	n, err := req.Body.Read(buffer)
 	if err != nil && err != io.EOF {
@@ -66,6 +67,7 @@ func (gh *gpioHandler) addPin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) deletePin(wr http.ResponseWriter, req *http.Request) {
+	logrus.Debugln("deletePin() handler")
 	params := mux.Vars(req)
 	pin, err := strconv.Atoi(params["pin"])
 	if err != nil || pin < 0 {
@@ -79,6 +81,7 @@ func (gh *gpioHandler) deletePin(wr http.ResponseWriter, req *http.Request) {
 		logrus.Errorf("Failed to unexport pin '%d': %v\n", pin, err.Error())
 		if err == gpio.ErrNotExported {
 			wr.WriteHeader(http.StatusBadRequest)
+			wr.Write([]byte(err.Error()))
 		} else {
 			wr.WriteHeader(http.StatusInternalServerError)
 		}
@@ -89,6 +92,7 @@ func (gh *gpioHandler) deletePin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) setPin(wr http.ResponseWriter, req *http.Request) {
+	logrus.Debugln("setPin() handler")
 	params := mux.Vars(req)
 	pin, err := strconv.Atoi(params["pin"])
 	if err != nil || pin < 0 {
@@ -141,6 +145,7 @@ func (gh *gpioHandler) setPin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) getPin(wr http.ResponseWriter, req *http.Request) {
+	logrus.Debugln("getPin() handler")
 	params := mux.Vars(req)
 	pin, err := strconv.Atoi(params["pin"])
 	if err != nil || pin < 0 {
@@ -174,6 +179,7 @@ func (gh *gpioHandler) getPin(wr http.ResponseWriter, req *http.Request) {
 }
 
 func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
+	logrus.Debugln("getAllPins() handler")
 	pins, err := gh.ctrl.ListExportedPins()
 	if err != nil {
 		logrus.Errorln("Error when listing GPIO pins:", err)
@@ -193,6 +199,10 @@ func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
 	buffer, err := json.Marshal(result)
 	if err != nil {
 		logrus.Errorln("Error when marshalling pin data:", err)
+		if err == gpio.ErrNotImplemented {
+			wr.WriteHeader(http.StatusNotImplemented)
+			return
+		}
 		wr.WriteHeader(http.StatusInternalServerError)
 		return
 	}
