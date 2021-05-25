@@ -37,19 +37,19 @@ To **enable GPIO pin** send HTTP POST request to */v2/gpio* endpoint with pin de
 *Request example for output pin*:
 
 ```bash
-curl -X POST -d `{
+curl -X POST -d '{
 "pin" : 1,
 "direction" : "out"
-}` http://locahost:8080/v2/gpio
+}' http://locahost:8080/v2/gpio
 ```
 
 *Request example for input pin*:
 
 ```bash
-curl -X POST -d `{
+curl -X POST -d '{
 "pin" : 1,
 "direction" : "in"
-}` http://locahost:8080/v2/gpio
+}' http://locahost:8080/v2/gpio
 ```
 
 If successfully processed HTTP OK (code 200) is returned.
@@ -57,6 +57,10 @@ If successfully processed HTTP OK (code 200) is returned.
 To **disable GPIO pin** send HTTP DELETE request to */v2/gpio/{X}* endpoint wher {X} is a PIN number.
 
 *Request example*:
+
+```bash
+curl -X DELETE http://localhost:8080/v2/gpio/1
+```
 
 ...
 
