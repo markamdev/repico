@@ -97,8 +97,28 @@ func (c *controller) UnexportPin(pin int) error {
 
 func (c *controller) ListExportedPins() (map[int]Direction, error) {
 	logrus.Traceln("gpio.controller.ListExportedPins()")
-	var result map[int]Direction
-	return result, ErrNotImplemented
+	result := map[int]Direction{}
+
+	pins, err := listExported()
+	if err != nil {
+		return map[int]Direction{}, ErrUnknown
+	}
+	logrus.Debug("Currently detected pins:", pins)
+
+	for _, pin := range pins {
+		isOut, err := isOutput(pin)
+		if err != nil {
+			logrus.Warn("Error while checking direction for one of pins:", err)
+			return map[int]Direction{}, ErrUnknown
+		}
+		pinInt, _ := strconv.Atoi(pin)
+		if isOut {
+			result[pinInt] = Output
+		} else {
+			result[pinInt] = Input
+		}
+	}
+	return result, nil
 }
 
 func CreateController(gpioPath string) Controller {

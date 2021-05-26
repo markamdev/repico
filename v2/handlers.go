@@ -208,8 +208,8 @@ func (gh *gpioHandler) getAllPins(wr http.ResponseWriter, req *http.Request) {
 	}
 
 	wr.Header().Set("Content-Type", "application/json")
-	wr.Write(buffer)
 	wr.WriteHeader(http.StatusOK)
+	wr.Write(buffer)
 }
 
 // TODO re-think this and maybe unify structures used in code

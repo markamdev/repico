@@ -3,6 +3,7 @@ package gpio
 import (
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/sirupsen/logrus"
@@ -143,4 +144,28 @@ func getValue(pin string) (string, error) {
 	}
 
 	return strings.TrimRight(string(buffer[:n]), "\r\n"), nil
+}
+
+func listExported() ([]string, error) {
+	entries, err := os.ReadDir(pathGpioBase)
+	if err != nil {
+		logrus.Traceln("listExported() failed to read GPIO directory:", err)
+		return []string{}, ErrUnknown
+	}
+
+	result := make([]string, 0, len(entries))
+	for _, ent := range entries {
+		currName := ent.Name()
+		if !strings.HasPrefix(currName, "gpio") {
+			continue
+		}
+		id := strings.TrimPrefix(currName, "gpio")
+		_, err = strconv.Atoi(id)
+		if err != nil {
+			continue
+		}
+
+		result = append(result, id)
+	}
+	return result, nil
 }
