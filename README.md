@@ -54,7 +54,7 @@ curl -X POST -d '{
 
 If successfully processed HTTP OK (code 200) is returned.
 
-To **disable GPIO pin** send HTTP DELETE request to */v2/gpio/{X}* endpoint wher {X} is a PIN number.
+To **disable GPIO pin** send HTTP DELETE request to */v2/gpio/{X}* endpoint where {X} is a PIN number.
 
 *Request example*:
 
@@ -64,9 +64,36 @@ curl -X DELETE http://localhost:8080/v2/gpio/1
 
 ### Setting and getting GPIO pin's state
 
+To **set GPIO pin value** send HTTP PATCH request to */v2/gpio/{X}* endpoint (where {X} is a PIN number) with proper JSON data in body
+
+*Request example*:
+
+```bash
+curl -X PATCH -d '{ "value" : 1 }' http://localhost:8080/v2/gpio/1
+```
+
+Please note that in case of pin configured as *input* it is not possible to set value. In such case API will return HTTP error BadRequest (400).
+
+To **get current GPIO pin value** send HTTP GET request to */v2/gpio/{X}* endpoint (where {X} is a PIN number.
+
+*Request example*:
+
+```bash
+curl -X GET http://localhost:8080/v2/gpio/1
+```
+
+*Response example*:
+
+```json
+{
+  "pin": 1,
+  "value": 1
+}
+```
+
 ### Listing all exported GPIO pins
 
-It is possible to list all exported GPIO pins with their current direction using GET request to main endpoint.
+It is possible to **list all exported GPIO pins** with their current direction using GET request to main endpoint.
 
 *Request example*:
 
