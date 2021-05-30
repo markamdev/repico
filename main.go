@@ -7,18 +7,29 @@ import (
 	"os/signal"
 
 	"github.com/markamdev/repico/gpio"
+	"github.com/markamdev/repico/server"
 	v2 "github.com/markamdev/repico/v2"
+	"github.com/namsral/flag"
 	"github.com/sirupsen/logrus"
 )
 
+var (
+	port = flag.Int("repico-port", 8080, "Repico listening port")
+)
+
 func main() {
+	initFlags()
 	initLogger()
 
 	logrus.Debugln("RePiCo server")
 
 	ctrl := gpio.CreateController("/sys/class/gpio")
 	mainRouter := v2.CreateHandler(ctrl)
-	srv := http.Server{Addr: ":8080", Handler: mainRouter}
+
+	srv, err := server.Create(*port, mainRouter)
+	if err != nil {
+		logrus.Fatalln("Server cration error:", err)
+	}
 
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt)
@@ -46,4 +57,8 @@ func initLogger() {
 		DisableColors: true,
 		FullTimestamp: true,
 	})
+}
+
+func initFlags() {
+	flag.Parse()
 }
