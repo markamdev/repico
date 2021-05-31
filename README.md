@@ -26,6 +26,18 @@ If you're not building on a target platform use necessary architecture and OS se
 GOARCH=arm GOOS=linux go build ./
 ```
 
+## Running RePiCo
+
+Repico is a standalone application and does not need any additional service to be running. Application options can be passed using command line flags and system environment variables.
+
+Table below lists all supported application options:
+
+| ------- | ------- | ------- | ------- |
+| System variable | Command line option | Default value | Description |
+| ------- | --------| ------- | --------|
+| REPICO_PORT | --repico-port | 8080 | Application listening port |
+| LOG_LEVEL | --log-level | ERROR | Logging level. Allowed leves are ERROR, DEBUG and VERBOSE |
+
 ## Usage
 
 As **repico** is a REST based application it can be fully controlled by HTTP request. Use your HTTP client of choice ([Insomnia](https://insomnia.rest/), [Postman](https://www.postman.com/) or even a command line based [cURL](https://curl.se/) ) to send command to application.

@@ -14,14 +14,15 @@ import (
 )
 
 var (
-	port = flag.Int("repico-port", 8080, "Repico listening port")
+	port  = flag.Int("repico-port", 8080, "Repico listening port")
+	level = flag.String("log-level", "ERROR", "Log level: ERROR, DEBUG or VERBOSE")
 )
 
 func main() {
-	initFlags()
 	initLogger()
+	initFlags()
 
-	logrus.Debugln("RePiCo server")
+	logrus.Debugln("RePiCo starts listening on port", *port)
 
 	ctrl := gpio.CreateController("/sys/class/gpio")
 	mainRouter := v2.CreateHandler(ctrl)
@@ -61,4 +62,16 @@ func initLogger() {
 
 func initFlags() {
 	flag.Parse()
+
+	switch *level {
+	case "ERROR":
+		logrus.SetLevel(logrus.ErrorLevel)
+	case "DEBUG":
+		logrus.SetLevel(logrus.DebugLevel)
+	case "VERBOSE":
+		logrus.SetLevel(logrus.TraceLevel)
+	default:
+		flag.PrintDefaults()
+		os.Exit(1)
+	}
 }
