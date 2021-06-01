@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gorilla/mux"
 	"github.com/markamdev/repico/gpio"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,9 @@ func TestCreateHandler(t *testing.T) {
 	ctrl := &controllerStub{}
 	body := &bodyStub{}
 
-	hndlr := CreateHandler(ctrl)
+	hndlr := mux.NewRouter()
+	subRtr := hndlr.PathPrefix("/v2").Subrouter()
+	AttachHandlers(subRtr, ctrl)
 
 	assert.NotEqual(t, nil, hndlr, "Returned handler should not be nil")
 

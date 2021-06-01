@@ -25,18 +25,16 @@ func main() {
 	logrus.Debugln("RePiCo starts listening on port", *port)
 
 	ctrl := gpio.CreateController("/sys/class/gpio")
-	mainRouter := v2.CreateHandler(ctrl)
 
-	srv, err := server.Create(*port, mainRouter)
-	if err != nil {
-		logrus.Fatalln("Server cration error:", err)
-	}
+	newRouter := server.NewHandler()
+	gpioSubRouter := newRouter.GetSubRouter("/v2")
+	v2.AttachHandlers(gpioSubRouter, ctrl)
 
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, os.Interrupt)
 
 	go func() {
-		err := srv.ListenAndServe()
+		err := newRouter.ServeHTTP(*port)
 		if err != nil {
 			if err == http.ErrServerClosed {
 				logrus.Debugln("Regular server closing")
@@ -49,7 +47,7 @@ func main() {
 	_ = <-sigChannel
 
 	logrus.Debugln("Closing server after signal received")
-	srv.Shutdown(context.Background())
+	newRouter.Shutdown(context.Background())
 }
 
 func initLogger() {

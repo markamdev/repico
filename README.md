@@ -32,7 +32,6 @@ Repico is a standalone application and does not need any additional service to b
 
 Table below lists all supported application options:
 
-| ------- | ------- | ------- | ------- |
 | System variable | Command line option | Default value | Description |
 | ------- | --------| ------- | --------|
 | REPICO_PORT | --repico-port | 8080 | Application listening port |
