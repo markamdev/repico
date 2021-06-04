@@ -44,7 +44,7 @@ func main() {
 		}
 	}()
 
-	_ = <-sigChannel
+	<-sigChannel
 
 	logrus.Debugln("Closing server after signal received")
 	newRouter.Shutdown(context.Background())
